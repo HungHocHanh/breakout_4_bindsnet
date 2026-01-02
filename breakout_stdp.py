@@ -12,7 +12,7 @@ from bindsnet.pipeline.action import select_softmax
 
 # ================== CẤU HÌNH ==================
 CHECKPOINT_PATH = "Izhikevich.pth"
-CHECKPOINT_INTERVAL = 10  # lưu mỗi 100 episode
+CHECKPOINT_INTERVAL = 1  # lưu mỗi 100 episode
 REWARD_LOG_FILE = "reward_log_izhikevich.txt"  # <<< MỚI
 # ==============================================
 
