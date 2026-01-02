@@ -11,9 +11,9 @@ from bindsnet.pipeline import EnvironmentPipeline
 from bindsnet.pipeline.action import select_softmax
 
 # ================== CẤU HÌNH ==================
-CHECKPOINT_PATH = "breakout_checkpoint.pth"
+CHECKPOINT_PATH = "Izhikevich.pth"
 CHECKPOINT_INTERVAL = 10  # lưu mỗi 100 episode
-REWARD_LOG_FILE = "reward_log.txt"  # <<< MỚI
+REWARD_LOG_FILE = "reward_log_izhikevich.txt"  # <<< MỚI
 # ==============================================
 
 # ----------------- BUILD NETWORK -----------------
@@ -82,32 +82,56 @@ def load_checkpoint_if_exists(network, path=CHECKPOINT_PATH):
 
     return state.get("episode", 0)
 
-# ----------------- TRAIN VÔ HẠN -----------------
-environment_pipeline.network.learning = True
+# ================== CHU KỲ TRAIN & TEST ==================
+TRAIN_EPISODES = 100
+TEST_EPISODES = 100
+
 episode = load_checkpoint_if_exists(environment_pipeline.network, CHECKPOINT_PATH)
 
 while True:
-    total_reward = 0.0
-    environment_pipeline.reset_state_variables()
-    done = False
+    # --- GIAI ĐOẠN 1: TRAINING (100 Episodes) ---
+    print(f"\n>>> BẮT ĐẦU TRAINING {TRAIN_EPISODES} EPISODES...")
+    environment_pipeline.network.learning = True  # Bật chế độ học
+    
+    for _ in range(TRAIN_EPISODES):
+        total_reward = 0.0
+        environment_pipeline.reset_state_variables()
+        done = False
+        while not done:
+            result = environment_pipeline.env_step()
+            environment_pipeline.step(result)
+            total_reward += result[1]
+            done = result[2]
+        
+        print(f"Train Episode {episode} | Reward: {total_reward}")
+        with open(REWARD_LOG_FILE, "a") as f:
+            f.write(f"{episode},{total_reward},train\n")
+        
+        # Lưu checkpoint định kỳ
+        if (episode + 1) % CHECKPOINT_INTERVAL == 0:
+            save_checkpoint(environment_pipeline.network, episode + 1, CHECKPOINT_PATH)
+        episode += 1
 
-    while not done:
-        result = environment_pipeline.env_step()
-        environment_pipeline.step(result)
+    # --- GIAI ĐOẠN 2: TESTING (100 Episodes) ---
+    print(f"\n>>> BẮT ĐẦU TESTING {TEST_EPISODES} EPISODES (TẮT LEARNING)...")
+    environment_pipeline.network.learning = False  # Tắt chế độ học để đánh giá
+    test_rewards = []
 
-        reward = result[1]
-        done = result[2]
-        total_reward += reward
+    for t_ep in range(TEST_EPISODES):
+        total_reward = 0.0
+        environment_pipeline.reset_state_variables()
+        done = False
+        while not done:
+            result = environment_pipeline.env_step()
+            environment_pipeline.step(result)
+            total_reward += result[1]
+            done = result[2]
+        
+        test_rewards.append(total_reward)
+        print(f"Test Episode {t_ep+1}/{TEST_EPISODES} | Reward: {total_reward}")
+        with open(REWARD_LOG_FILE, "a") as f:
+            f.write(f"{episode}_test_{t_ep},{total_reward},test\n")
 
-    # In ra màn hình
-    print(f"Episode {episode}  reward {total_reward}")
-
-    # ✅ LƯU REWARD VÀO FILE TXT
-    with open(REWARD_LOG_FILE, "a") as f:
-        f.write(f"{episode},{total_reward}\n")
-
-    # Lưu checkpoint mỗi 100 episode
-    if (episode + 1) % CHECKPOINT_INTERVAL == 0:
-        save_checkpoint(environment_pipeline.network, episode + 1, CHECKPOINT_PATH)
-
-    episode += 1
+    # Tính toán độ hiệu quả sau mỗi chu kỳ
+    avg_test = sum(test_rewards) / TEST_EPISODES
+    print(f"\n[KẾT QUẢ] Trung bình phần thưởng sau 100 trận Test: {avg_test}")
