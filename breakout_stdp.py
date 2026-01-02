@@ -20,7 +20,7 @@ REWARD_LOG_FILE = "reward_log_izhikevich.txt"  # <<< MỚI
 network = Network(dt=1.0)
 
 inpt = Input(n=80 * 80, shape=[1, 1, 1, 80, 80], traces=True)
-middle = IzhikevichNodes(n=100, traces=True)
+middle = IzhikevichNodes(n=500, traces=True)
 out = IzhikevichNodes(n=4, traces=True)
 
 inpt_middle = Connection(source=inpt, target=middle, wmin=0, wmax=1e-1)
@@ -30,7 +30,7 @@ middle_out = Connection(
     wmin=0,
     wmax=1,
     update_rule=MSTDP,
-    nu=1e-1,
+    nu=1e-2,
     norm=0.5 * middle.n,
 )
 
