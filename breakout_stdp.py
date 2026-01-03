@@ -1,97 +1,17 @@
-import os
-import torch
-
-from bindsnet.encoding import bernoulli
-from bindsnet.environment import GymEnvironment
-from bindsnet.learning import MSTDP
-from bindsnet.network import Network
-from bindsnet.network.nodes import Input, IzhikevichNodes
-from bindsnet.network.topology import Connection
-from bindsnet.pipeline import EnvironmentPipeline
-from bindsnet.pipeline.action import select_softmax
-
-# ================== CẤU HÌNH ==================
-CHECKPOINT_PATH = "Izhikevich.pth"
-CHECKPOINT_INTERVAL = 1  # lưu mỗi 100 episode
-REWARD_LOG_FILE = "reward_log_izhikevich.txt"  # <<< MỚI
-# ==============================================
-
-# ----------------- BUILD NETWORK -----------------
-network = Network(dt=1.0)
-
-inpt = Input(n=80 * 80, shape=[1, 1, 1, 80, 80], traces=True)
-middle = IzhikevichNodes(n=500, traces=True)
-out = IzhikevichNodes(n=4, traces=True)
-
-inpt_middle = Connection(source=inpt, target=middle, wmin=0, wmax=1e-1)
-middle_out = Connection(
-    source=middle,
-    target=out,
-    wmin=0,
-    wmax=1,
-    update_rule=MSTDP,
-    nu=1e-2,
-    norm=0.5 * middle.n,
-)
-
-network.add_layer(inpt, name="Input Layer")
-network.add_layer(middle, name="Hidden Layer")
-network.add_layer(out, name="Output Layer")
-network.add_connection(inpt_middle, source="Input Layer", target="Hidden Layer")
-network.add_connection(middle_out, source="Hidden Layer", target="Output Layer")
-
-environment = GymEnvironment("BreakoutDeterministic-v4", render_mode="rgb_array")
-environment.reset()
-
-environment_pipeline = EnvironmentPipeline(
-    network,
-    environment,
-    encoding=bernoulli,
-    action_function=select_softmax,
-    output="Output Layer",
-    time=100,
-    history_length=1,
-    delta=1,
-    plot_interval=10**9,
-    render_interval=10**9,
-)
-
-# ----------------- CHECKPOINT -----------------
-def save_checkpoint(network, episode, path=CHECKPOINT_PATH):
-    state = {
-        "episode": episode,
-        "network_state": network.state_dict(),
-    }
-    torch.save(state, path)
-
-
-def load_checkpoint_if_exists(network, path=CHECKPOINT_PATH):
-    if not os.path.exists(path):
-        return 0
-
-    state = torch.load(path, map_location="cpu")
-    state_dict = state.get("network_state", {})
-
-    filtered_state_dict = {}
-    for k, v in state_dict.items():
-        if ".s" in k:
-            continue
-        filtered_state_dict[k] = v
-
-    network.load_state_dict(filtered_state_dict, strict=False)
-
-    return state.get("episode", 0)
-
-# ================== CHU KỲ TRAIN & TEST ==================
+# ================== CHU KỲ TRAIN & TEST (NÂNG CẤP) ==================
 TRAIN_EPISODES = 100
 TEST_EPISODES = 100
+
+# Khởi tạo các biến tính trung bình cộng dồn
+all_test_rewards_sum = 0.0
+total_test_episodes_count = 0
 
 episode = load_checkpoint_if_exists(environment_pipeline.network, CHECKPOINT_PATH)
 
 while True:
     # --- GIAI ĐOẠN 1: TRAINING (100 Episodes) ---
     print(f"\n>>> BẮT ĐẦU TRAINING {TRAIN_EPISODES} EPISODES...")
-    environment_pipeline.network.learning = True  # Bật chế độ học
+    environment_pipeline.network.learning = True
     
     for _ in range(TRAIN_EPISODES):
         total_reward = 0.0
@@ -107,15 +27,15 @@ while True:
         with open(REWARD_LOG_FILE, "a") as f:
             f.write(f"{episode},{total_reward},train\n")
         
-        # Lưu checkpoint định kỳ
         if (episode + 1) % CHECKPOINT_INTERVAL == 0:
             save_checkpoint(environment_pipeline.network, episode + 1, CHECKPOINT_PATH)
         episode += 1
 
     # --- GIAI ĐOẠN 2: TESTING (100 Episodes) ---
     print(f"\n>>> BẮT ĐẦU TESTING {TEST_EPISODES} EPISODES (TẮT LEARNING)...")
-    environment_pipeline.network.learning = False  # Tắt chế độ học để đánh giá
-    test_rewards = []
+    environment_pipeline.network.learning = False
+    
+    current_cycle_test_rewards = []
 
     for t_ep in range(TEST_EPISODES):
         total_reward = 0.0
@@ -127,11 +47,21 @@ while True:
             total_reward += result[1]
             done = result[2]
         
-        test_rewards.append(total_reward)
-        print(f"Test Episode {t_ep+1}/{TEST_EPISODES} | Reward: {total_reward}")
+        current_cycle_test_rewards.append(total_reward)
+        
+        # Cập nhật trung bình cộng dồn (Cumulative Moving Average)
+        all_test_rewards_sum += total_reward
+        total_test_episodes_count += 1
+        cumulative_avg = all_test_rewards_sum / total_test_episodes_count
+        
+        print(f"Test Ep {t_ep+1}/{TEST_EPISODES} | Reward: {total_reward} | Cumulative Avg: {cumulative_avg:.3f}")
+        
         with open(REWARD_LOG_FILE, "a") as f:
-            f.write(f"{episode}_test_{t_ep},{total_reward},test\n")
+            # Lưu thêm cả giá trị trung bình cộng dồn vào log để Hưng dễ vẽ biểu đồ
+            f.write(f"{episode}_test_{t_ep},{total_reward},test,{cumulative_avg:.3f}\n")
 
-    # Tính toán độ hiệu quả sau mỗi chu kỳ
-    avg_test = sum(test_rewards) / TEST_EPISODES
-    print(f"\n[KẾT QUẢ] Trung bình phần thưởng sau 100 trận Test: {avg_test}")
+    # Kết quả cuối mỗi đợt
+    avg_this_cycle = sum(current_cycle_test_rewards) / TEST_EPISODES
+    print(f"\n[KẾT QUẢ CHU KỲ]")
+    print(f"- Trung bình chu kỳ này: {avg_this_cycle:.3f}")
+    print(f"- TRUNG BÌNH CỘNG DỒN TẤT CẢ CÁC ĐỢT TEST: {all_test_rewards_sum / total_test_episodes_count:.3f}")
