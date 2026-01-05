@@ -13,7 +13,7 @@ from bindsnet.pipeline.action import select_softmax
 
 # ================== CẤU HÌNH (PERSONALIZED FOR HƯNG) ==================
 CHECKPOINT_PATH = "Izhikevich_exc_inh.pth"
-REWARD_LOG_FILE = "reward_log_izhikevich_ex_inh.txt" 
+REWARD_LOG_FILE = "reward_log_izhikevich_ex_inh.txt"
 TRAIN_EPISODES = 100
 TEST_EPISODES = 100
 CHECKPOINT_INTERVAL = 50 # Lưu mỗi 50 episode để tránh làm chậm máy
@@ -30,10 +30,10 @@ network = Network(dt=1.0)
 inpt = Input(n=80 * 80, shape=[1, 1, 1, 80, 80], traces=True)
 
 # Lớp Reservoir: Hồ chứa 500 neuron Izhikevich
-middle = IzhikevichNodes(n=N_HIDDEN, excitatory = 0.8, traces=True)
+middle = IzhikevichNodes(n=N_HIDDEN, excitatory=0.8, traces=True)
 
 # Lớp Output: 4 hành động (Trái, Phải, Đứng yên, Bắn)
-out = IzhikevichNodes(n=4, excitatory = 0.8, traces=True)
+out = IzhikevichNodes(n=4, excitatory=0.8, traces=True)
 
 # Kết nối Input -> Middle: Cố định (đặc trưng của Reservoir Computing)
 inpt_middle = Connection(source=inpt, target=middle, wmin=0, wmax=1e-1)
@@ -83,10 +83,39 @@ def save_checkpoint(network, episode, path=CHECKPOINT_PATH):
 
 def load_checkpoint_if_exists(network, path=CHECKPOINT_PATH):
     if not os.path.exists(path):
+        print("Không tìm thấy checkpoint. Bắt đầu train mới.")
         return 0
-    state = torch.load(path, map_location="cpu")
-    network.load_state_dict(state.get("network_state", {}), strict=False)
-    return state.get("episode", 0)
+    
+    print(f"Đang tải checkpoint từ {path}...")
+    try:
+        # Load về CPU để tránh lỗi device
+        checkpoint = torch.load(path, map_location="cpu")
+        state_dict = checkpoint.get("network_state", {})
+        
+        # --- BẮT ĐẦU PATCH SỬA LỖI DIMENSION ---
+        keys_to_fix = [
+            "Input Layer.s", 
+            "Input Layer_to_Hidden Layer.source.s"
+        ]
+        
+        for key in keys_to_fix:
+            if key in state_dict:
+                tensor = state_dict[key]
+                # Nếu kích thước là 5 chiều [1, 1, 1, 80, 80], thêm 1 chiều vào để khớp model mới
+                if len(tensor.shape) == 5:
+                    print(f"-> Đang sửa kích thước cho tensor: {key}...")
+                    state_dict[key] = tensor.unsqueeze(3)
+        # --- KẾT THÚC PATCH ---
+
+        network.load_state_dict(state_dict, strict=False)
+        ep = checkpoint.get("episode", 0)
+        print(f"Tải thành công! Tiếp tục từ Episode {ep}")
+        return ep
+        
+    except Exception as e:
+        print(f"Lỗi khi tải checkpoint: {e}")
+        print("Sẽ bắt đầu train lại từ đầu.")
+        return 0
 
 # ----------------- CHU KỲ TRAIN & TEST (CUMULATIVE AVG) -----------------
 all_test_rewards_sum = 0.0
