@@ -52,7 +52,7 @@ network.add_connection(inpt_middle, source="Input Layer", target="Hidden Layer")
 network.add_connection(middle_out, source="Hidden Layer", target="Output Layer")
 
 # ----------------- THIẾT LẬP MÔI TRƯỜNG -----------------
-environment = GymEnvironment("BreakoutDeterministic-v4", render_mode="rgb-array")
+environment = GymEnvironment("BreakoutDeterministic-v4", render_mode="rgb_array")
 environment.reset()
 
 environment_pipeline = EnvironmentPipeline(
