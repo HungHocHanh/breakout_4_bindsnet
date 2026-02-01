@@ -40,7 +40,7 @@ SAVE_EVERY_EPISODES = 25   # during train, checkpoint every N episodes (optional
 # Optional: debug prints (not required for logging)
 PRINT_EVERY_STEPS = 0      # set 0 to disable prints
 
-RUN_DIR = "runs_breakout_izhRS"
+RUN_DIR = "runs_breakout_izhRS1"
 os.makedirs(RUN_DIR, exist_ok=True)
 
 RESULTS_CSV = os.path.join(RUN_DIR, "results.csv")
