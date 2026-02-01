@@ -139,7 +139,7 @@ def build_network():
         target=out,
         wmin=0,
         wmax=1,
-        update_rule=MSTDPETS,
+        update_rule=MSTDPET,
         nu=5e-2,
         norm=0.5 * middle.n,
     )
