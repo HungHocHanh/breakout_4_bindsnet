@@ -22,7 +22,7 @@ from bindsnet.encoding import bernoulli
 from bindsnet.environment import GymEnvironment
 from bindsnet.learning import MSTDP
 from bindsnet.network import Network
-from bindsnet.network.nodes import Input, IzhikevichRSNodes
+from bindsnet.network.nodes import Input, IzhikevichNodes
 from bindsnet.network.topology import Connection
 from bindsnet.network.monitors import Monitor
 from bindsnet.pipeline import EnvironmentPipeline
@@ -129,8 +129,8 @@ def build_network():
     # NOTE: This assumes your environment/pipeline produces 80x80 observations (after preprocessing).
     inpt = Input(n=80 * 80, shape=[1, 1, 1, 80, 80], traces=True)
 
-    middle = IzhikevichRSNodes(n=100, excitatory=1, traces=True)
-    out = IzhikevichRSNodes(n=4, refrac=0, traces=True)
+    middle = IzhikevichNodes(n=100, excitatory=1, traces=True)
+    out = IzhikevichNodes(n=4, refrac=0, traces=True)
 
     inpt_middle = Connection(source=inpt, target=middle, wmin=0, wmax=1e-1)
 
