@@ -20,7 +20,7 @@ import numpy as np  # for mean/std
 
 from bindsnet.encoding import bernoulli
 from bindsnet.environment import GymEnvironment
-from bindsnet.learning import MSTDP
+from bindsnet.learning import MSTDPET
 from bindsnet.network import Network
 from bindsnet.network.nodes import Input, IzhikevichNodes
 from bindsnet.network.topology import Connection
@@ -139,7 +139,7 @@ def build_network():
         target=out,
         wmin=0,
         wmax=1,
-        update_rule=MSTDP,
+        update_rule=MSTDPETS,
         nu=5e-2,
         norm=0.5 * middle.n,
     )
