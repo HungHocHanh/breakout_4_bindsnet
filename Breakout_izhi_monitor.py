@@ -20,7 +20,7 @@ import numpy as np  # for mean/std
 
 from bindsnet.encoding import bernoulli
 from bindsnet.environment import GymEnvironment
-from bindsnet.learning import MSTDPET
+from bindsnet.learning import MSTDP
 from bindsnet.network import Network
 from bindsnet.network.nodes import Input, IzhikevichNodes
 from bindsnet.network.topology import Connection
@@ -40,7 +40,7 @@ SAVE_EVERY_EPISODES = 25   # during train, checkpoint every N episodes (optional
 # Optional: debug prints (not required for logging)
 PRINT_EVERY_STEPS = 0      # set 0 to disable prints
 
-RUN_DIR = "runs_breakout_izhRS1"
+RUN_DIR = "runs_breakout_izhMSTDPnu=1e-1_norm=0.5"
 os.makedirs(RUN_DIR, exist_ok=True)
 
 RESULTS_CSV = os.path.join(RUN_DIR, "results.csv")
@@ -140,7 +140,7 @@ def build_network():
         wmin=0,
         wmax=1,
         update_rule=MSTDPET,
-        nu=5e-2,
+        nu=1e-1,
         norm=0.5 * middle.n,
     )
 
