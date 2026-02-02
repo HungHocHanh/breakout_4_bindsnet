@@ -40,7 +40,7 @@ SAVE_EVERY_EPISODES = 25   # during train, checkpoint every N episodes (optional
 # Optional: debug prints (not required for logging)
 PRINT_EVERY_STEPS = 0      # set 0 to disable prints
 
-RUN_DIR = "runs_breakout_izhRSMSTDPETnu1e-1"
+RUN_DIR = "runs_breakout_izhRSMSTDPETnu1e-1_norm=0.3"
 os.makedirs(RUN_DIR, exist_ok=True)
 
 RESULTS_CSV = os.path.join(RUN_DIR, "results.csv")
@@ -141,7 +141,7 @@ def build_network():
         wmax=1,
         update_rule=MSTDPET,
         nu=1e-1,
-        norm=0.5 * middle.n,
+        norm=0.3 * middle.n,
     )
 
     network.add_layer(inpt, name="Input Layer")
